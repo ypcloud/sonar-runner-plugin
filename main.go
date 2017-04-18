@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/urfave/cli"
 )
@@ -12,7 +13,7 @@ var build = "0" // build number set at compile-time
 func main() {
 
 	cli.VersionFlag = cli.BoolFlag{
-		Name: "plugin-version, V",
+		Name:  "plugin-version, V",
 		Usage: "print plugin version",
 	}
 
@@ -39,12 +40,11 @@ func main() {
 			EnvVar: "DRONE_COMMIT_BRANCH",
 		},
 
-
 		cli.StringFlag{
 			Name:   "host",
 			Usage:  "Sonar host URL",
 			EnvVar: "SONAR_HOST,PLUGIN_HOST",
-			Value: "localhost",
+			Value:  "localhost",
 		},
 		cli.StringFlag{
 			Name:   "login",
@@ -69,12 +69,22 @@ func main() {
 		cli.StringFlag{
 			Name:   "version",
 			Usage:  "Project version",
-			EnvVar: "PLUGIN_VERSION",
+			EnvVar: "PLUGIN_VERSION,DRONE_BUILD_NUMBER",
 		},
 		cli.StringFlag{
 			Name:   "sources",
 			Usage:  "Project sources to scan",
 			EnvVar: "PLUGIN_SOURCES",
+		},
+		cli.StringFlag{
+			Name:   "inclusions",
+			Usage:  "Project sources inclusions",
+			EnvVar: "PLUGIN_INCLUSIONS",
+		},
+		cli.StringFlag{
+			Name:   "exclusions",
+			Usage:  "Project sources exclusions",
+			EnvVar: "PLUGIN_EXCLUSIONS",
 		},
 		cli.StringFlag{
 			Name:   "language",
@@ -105,7 +115,12 @@ func main() {
 			Usage:  "Print generated config - debug purposes",
 			EnvVar: "PLUGIN_DEBUG",
 		},
-
+		cli.StringFlag{
+			Name:   "allowed.branch.regex",
+			Usage:  "A regex to check against running branch to see if analysis is allowed",
+			EnvVar: "PLUGIN_ALLOWED_BRANCH_REGEX",
+			Value:  `(^master$|^develop$|^release\/+)`,
+		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
@@ -115,25 +130,28 @@ func main() {
 
 func run(c *cli.Context) error {
 
-	plugin := Plugin {
+	plugin := Plugin{
 
-		Host:     c.String("host"),
-		Login:    c.String("login"),
-		Password: c.String("password"),
-		Key:      c.String("key"),
-		Name:     c.String("name"),
-		Version:  c.String("version"),
-		Sources:  c.String("sources"),
-		Language: c.String("language"),
-		Profile:  c.String("profile"),
-		Encoding: c.String("encoding"),
-		LcovPath: c.String("lcovpath"),
-		Debug:    c.Bool("debug"),
+		Host:       c.String("host"),
+		Login:      c.String("login"),
+		Password:   c.String("password"),
+		Key:        c.String("key"),
+		Name:       c.String("name"),
+		Version:    c.String("version"),
+		Sources:    c.String("sources"),
+		Inclusions: c.String("inclusions"),
+		Exclusions: c.String("exclusions"),
+		Language:   c.String("language"),
+		Profile:    c.String("profile"),
+		Encoding:   c.String("encoding"),
+		LcovPath:   c.String("lcovpath"),
+		Debug:      c.Bool("debug"),
 
-		Path:     c.String("path"),
-		Repo:     c.String("repo.name"),
-		Default:  c.String("repo.branch"),
-		Branch:   c.String("commit.branch"),
+		Path:        c.String("path"),
+		Repo:        c.String("repo.name"),
+		Default:     c.String("repo.branch"),
+		Branch:      c.String("commit.branch"),
+		BranchRegex: c.String("allowed.branch.regex"),
 	}
 
 	return plugin.Exec()

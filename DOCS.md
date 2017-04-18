@@ -12,6 +12,8 @@ The following parameters are used to configure the plugin:
 * **name** - Sonar project name. Defaults to ORG/REPO_NAME - sonar.projectName property
 * **version** - Sonar project version - sonar.projectName property
 * **sources** - Sonar project sources paths - sonar.sources property
+* **inclusions** - Sonar project sources inclusions - sonar.inclusions property
+* **exclusions** - Sonar project sources exclusions - sonar.exclusions property
 * **language** - Sonar project language. Defaults to 'js' - sonar.language property
 * **profile** - Sonar project profile. Defaults to 'node' - sonar.profile property
 * **encoding** - Sonar project encoding. Defaults to 'UTF-8' - sonar.sourceEncoding property

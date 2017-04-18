@@ -1,37 +1,53 @@
 package main
 
 import (
-	"github.com/Sirupsen/logrus"
+	"fmt"
 	"os"
 	"os/exec"
-	"text/template"
+	"regexp"
 	"strings"
-	"fmt"
+	"text/template"
+
+	"github.com/Sirupsen/logrus"
 )
 
 type Plugin struct {
-	Host     string
-	Login    string
-	Password string
-	Key      string
-	Name     string
-	Version  string
-	Sources  string
-	Language string
-	Profile  string
-	Encoding string
-	LcovPath string
-	Debug    bool
+	Host       string
+	Login      string
+	Password   string
+	Key        string
+	Name       string
+	Version    string
+	Sources    string
+	Inclusions string
+	Exclusions string
+	Language   string
+	Profile    string
+	Encoding   string
+	LcovPath   string
+	Debug      bool
 
-	Path     string
-	Repo     string
-	Branch   string
-	Default  string // default master branch
+	Path        string
+	Repo        string
+	Branch      string
+	BranchOut   string
+	Default     string // default master branch
+	BranchRegex string // to check against Branch and see if we allow running it
 }
 
 func (p *Plugin) Exec() error {
 
-	err := p.buildRunnerProperties()
+	err, allowed := p.branchAllowed()
+	if err != nil {
+		return err
+	}
+
+	// terminate gracefully the process but do not execute sonar plugin
+	if allowed == false {
+		os.Exit(0)
+	}
+
+	err = p.buildRunnerProperties()
 	if err != nil {
 		return err
 	}
@@ -42,14 +58,33 @@ func (p *Plugin) Exec() error {
 		return err
 	}
 
+	p.writePipelineLetter()
+
 	return nil
+}
+
+func (p Plugin) branchAllowed() (error, bool) {
+
+	re, err := regexp.Compile(p.BranchRegex)
+	if err != nil {
+		fmt.Printf("There is a problem with the provided Branch Regexp.\n")
+		return err, false
+	}
+	if re.MatchString(p.Branch) == true {
+		fmt.Printf("Branch %s allowed - executing sonar analysis.\n", p.Branch)
+		p.BranchOut = strings.Replace(re.FindString(p.Branch), "/", "", -1) // save Branch name without / (when release)
+		return nil, true
+	} else {
+		fmt.Printf("Branch %s not allowed - skiping analysis\n", p.Branch)
+		return nil, false
+	}
 }
 
 func (p Plugin) buildRunnerProperties() error {
 
 	p.Key = strings.Replace(p.Key, "/", ":", -1)
 
-	tmpl, err := template.ParseFiles("sonar-runner.properties.tmpl")
+	tmpl, err := template.ParseFiles("/opt/sonar/conf/sonar-runner.properties.tmpl")
 	if err != nil {
 		panic(err)
 	}
@@ -88,6 +123,20 @@ func (p Plugin) execSonarRunner() error {
 	}
 
 	return nil
+}
+
+func (p Plugin) writePipelineLetter() {
+
+	f, err := os.OpenFile(".Pipeline-Letter", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Printf("!!> Error creating / appending to .Pipeline-Letter")
+		return
+	}
+	defer f.Close()
+
+	if _, err = f.WriteString(fmt.Sprintf("*SONAR*: %s/dashboard/index/%s\n", p.Host, strings.Replace(p.Key, "/", ":", -1))); err != nil {
+		fmt.Printf("!!> Error writing to .Pipeline-Letter")
+	}
 }
 
 func printCommand(cmd *exec.Cmd) {
