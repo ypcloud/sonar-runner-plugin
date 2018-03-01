@@ -1,12 +1,14 @@
 package main
 
 import (
+	"crypto/sha256"
 	"fmt"
 	"os"
 	"os/exec"
 	"regexp"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/Sirupsen/logrus"
 )
@@ -58,6 +60,7 @@ func (p *Plugin) Exec() error {
 		return err
 	}
 
+	p.writeRepoSignature()
 	p.writePipelineLetter()
 
 	return nil
@@ -136,6 +139,24 @@ func (p Plugin) writePipelineLetter() {
 
 	if _, err = f.WriteString(fmt.Sprintf("*SONAR*: %s/dashboard/index/%s\n", p.Host, strings.Replace(p.Key, "/", ":", -1))); err != nil {
 		fmt.Printf("!!> Error writing to .Pipeline-Letter")
+	}
+}
+
+func (p Plugin) writeRepoSignature() {
+	expectedContent := fmt.Sprintf("%s/%s/%s\n", p.Repo, p.Branch, time.Now().Format("2006-01-02"))
+	h := sha256.New()
+	h.Write([]byte(expectedContent))
+	expectedSignature := fmt.Sprintf("%x", h.Sum(nil))
+
+	f, err := os.OpenFile(".SonarSignature", os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		fmt.Printf("!!> Error creating / appending to .SonarSignature")
+		return
+	}
+	defer f.Close()
+
+	if _, err = f.WriteString(expectedSignature); err != nil {
+		fmt.Printf("!!> Error writing to .SonarSignature")
 	}
 }
 
